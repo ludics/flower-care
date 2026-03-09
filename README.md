@@ -1,6 +1,6 @@
 # Flower Care
 
-家庭花卉管理应用，支持花卉照片上传、浇水提醒追踪和留言板功能。提供访客模式与管理员模式，访客可浏览花卉、发表留言，管理员可完整管理花卉和留言。
+家庭花卉管理应用，支持花卉照片上传、浇水提醒追踪、浇水历史记录和留言板功能。提供访客模式与管理员模式，访客可浏览花卉、发表留言、记录浇水，管理员可完整管理花卉、留言和浇水历史。
 
 ## 本地开发
 
@@ -38,8 +38,8 @@ flower-care/
 
 ## 权限说明
 
-- **访客**：浏览花卉、查看留言、发表留言、记录浇水
-- **管理员**：添加 / 编辑 / 删除花卉，删除留言
+- **访客**：浏览花卉、查看留言、发表留言、记录浇水、查看浇水历史
+- **管理员**：添加 / 编辑 / 删除花卉，删除留言，编辑 / 删除浇水历史记录
 
 管理员入口为页面右下角的 ⚙ 齿轮图标，点击后输入密码进入管理员模式。
 
@@ -56,8 +56,11 @@ ADMIN_PASSWORD=yourpassword npm start
 | GET | /api/flowers | 获取花卉列表 |
 | POST | /api/flowers | 添加花卉（multipart/form-data；photo 文件或 photo_url 链接二选一） |
 | PUT | /api/flowers/:id | 编辑花卉信息 |
-| PUT | /api/flowers/:id/water | 记录浇水 |
-| DELETE | /api/flowers/:id | 删除花卉及关联本地照片 |
+| PUT | /api/flowers/:id/water | 记录浇水（JSON：watered_at、mood 可选） |
+| DELETE | /api/flowers/:id | 删除花卉及关联本地照片和浇水记录 |
+| GET | /api/watering-logs | 获取浇水历史（?flower_id= 可过滤） |
+| PUT | /api/watering-logs/:id | 编辑浇水记录 |
+| DELETE | /api/watering-logs/:id | 删除浇水记录 |
 | GET | /api/comments | 获取留言列表 |
 | POST | /api/comments | 添加留言（JSON：nickname + content） |
 | DELETE | /api/comments/:id | 删除留言 |
