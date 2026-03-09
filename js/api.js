@@ -13,6 +13,14 @@ const API = {
     return res.json();
   },
 
+  async updateFlower(id, formData) {
+    const res = await fetch(`/api/flowers/${id}`, {
+      method: 'PUT',
+      body: formData,
+    });
+    return res.json();
+  },
+
   async waterFlower(id) {
     const res = await fetch(`/api/flowers/${id}/water`, {
       method: 'PUT',
@@ -37,6 +45,22 @@ const API = {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ nickname, content }),
+    });
+    return res.json();
+  },
+
+  async deleteComment(id) {
+    const res = await fetch(`/api/comments/${id}`, {
+      method: 'DELETE',
+    });
+    return res.json();
+  },
+
+  async adminLogin(password) {
+    const res = await fetch('/api/admin/login', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ password }),
     });
     return res.json();
   },

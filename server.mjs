@@ -8,6 +8,7 @@ const PORT = 16515;
 const DATA_DIR = path.resolve('data');
 const UPLOADS_DIR = path.resolve('uploads');
 const DB_PATH = path.join(DATA_DIR, 'flower-care.db');
+const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD || 'floweradmin2024';
 
 // Ensure directories exist
 fs.mkdirSync(DATA_DIR, { recursive: true });
@@ -93,10 +94,11 @@ app.get('/api/flowers', async (req, res) => {
 // POST /api/flowers
 app.post('/api/flowers', upload.single('photo'), async (req, res) => {
   try {
-    const { name, water_interval_days } = req.body;
+    const { name, water_interval_days, photo_url } = req.body;
     if (!name) return res.status(400).json({ error: '花卉名称不能为空' });
     const interval = parseInt(water_interval_days) || 3;
-    const photoPath = req.file ? `/uploads/${req.file.filename}` : null;
+    // photo_url (network link) takes priority; fallback to uploaded file
+    const photoPath = photo_url?.trim() || (req.file ? `/uploads/${req.file.filename}` : null);
 
     await runSQL(
       `INSERT INTO flowers (name, photo_path, water_interval_days) VALUES ($1, $2, $3)`,
@@ -130,13 +132,64 @@ app.delete('/api/flowers/:id', async (req, res) => {
     if (rows.length === 0) return res.status(404).json({ error: '花卉不存在' });
 
     const flower = rows[0];
-    if (flower.photo_path) {
+    // Only delete local uploaded files, not external URLs
+    if (flower.photo_path && flower.photo_path.startsWith('/uploads/')) {
       const filePath = path.resolve('.' + flower.photo_path);
       if (fs.existsSync(filePath)) fs.unlinkSync(filePath);
     }
 
     await runSQL(`DELETE FROM flowers WHERE id = $1`, [id]);
     res.json({ success: true });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// POST /api/admin/login
+app.post('/api/admin/login', (req, res) => {
+  const { password } = req.body;
+  if (password === ADMIN_PASSWORD) {
+    res.json({ success: true });
+  } else {
+    res.status(401).json({ error: '密码错误' });
+  }
+});
+
+// PUT /api/flowers/:id (edit flower)
+app.put('/api/flowers/:id', upload.single('photo'), async (req, res) => {
+  try {
+    const id = parseInt(req.params.id);
+    const rows = await runSQL(`SELECT * FROM flowers WHERE id = $1`, [id]);
+    if (rows.length === 0) return res.status(404).json({ error: '花卉不存在' });
+
+    const flower = rows[0];
+    const name = req.body.name || flower.name;
+    const interval = parseInt(req.body.water_interval_days) || flower.water_interval_days;
+
+    let photoPath = flower.photo_path;
+    const photoUrl = req.body.photo_url?.trim();
+    if (photoUrl) {
+      // Network URL: delete old local file if applicable, store URL directly
+      if (flower.photo_path && flower.photo_path.startsWith('/uploads/')) {
+        const oldFilePath = path.resolve('.' + flower.photo_path);
+        if (fs.existsSync(oldFilePath)) fs.unlinkSync(oldFilePath);
+      }
+      photoPath = photoUrl;
+    } else if (req.file) {
+      // Local upload: delete old local file if applicable
+      if (flower.photo_path && flower.photo_path.startsWith('/uploads/')) {
+        const oldFilePath = path.resolve('.' + flower.photo_path);
+        if (fs.existsSync(oldFilePath)) fs.unlinkSync(oldFilePath);
+      }
+      photoPath = `/uploads/${req.file.filename}`;
+    }
+
+    await runSQL(
+      `UPDATE flowers SET name = $1, photo_path = $2, water_interval_days = $3 WHERE id = $4`,
+      [name, photoPath, interval, id]
+    );
+    const updated = await runSQL(`SELECT * FROM flowers WHERE id = $1`, [id]);
+    res.json(updated[0]);
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
@@ -169,6 +222,20 @@ app.post('/api/comments', async (req, res) => {
   }
 });
 
+// DELETE /api/comments/:id
+app.delete('/api/comments/:id', async (req, res) => {
+  try {
+    const id = parseInt(req.params.id);
+    const rows = await runSQL(`SELECT * FROM comments WHERE id = $1`, [id]);
+    if (rows.length === 0) return res.status(404).json({ error: '评论不存在' });
+    await runSQL(`DELETE FROM comments WHERE id = $1`, [id]);
+    res.json({ success: true });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 app.listen(PORT, () => {
   console.log(`Flower Care server running at http://localhost:${PORT}`);
+  console.log(`Admin password: ${ADMIN_PASSWORD}`);
 });

@@ -1,6 +1,6 @@
 # Flower Care
 
-家庭花卉管理应用，支持花卉照片上传、浇水提醒追踪和留言板功能。
+家庭花卉管理应用，支持花卉照片上传、浇水提醒追踪和留言板功能。提供访客模式与管理员模式，访客可浏览花卉、发表留言，管理员可完整管理花卉和留言。
 
 ## 本地开发
 
@@ -36,16 +36,32 @@ flower-care/
 - **数据库**：DuckDB（嵌入式，数据文件存放在 `data/` 目录）
 - **文件上传**：multer（照片保存到 `uploads/` 目录）
 
+## 权限说明
+
+- **访客**：浏览花卉、查看留言、发表留言、记录浇水
+- **管理员**：添加 / 编辑 / 删除花卉，删除留言
+
+管理员入口为页面右下角的 ⚙ 齿轮图标，点击后输入密码进入管理员模式。
+
+默认密码：`floweradmin2024`，可通过环境变量 `ADMIN_PASSWORD` 覆盖：
+
+```bash
+ADMIN_PASSWORD=yourpassword npm start
+```
+
 ## API
 
 | 方法 | 路径 | 说明 |
 |------|------|------|
 | GET | /api/flowers | 获取花卉列表 |
-| POST | /api/flowers | 添加花卉（multipart/form-data，含照片文件） |
+| POST | /api/flowers | 添加花卉（multipart/form-data；photo 文件或 photo_url 链接二选一） |
+| PUT | /api/flowers/:id | 编辑花卉信息 |
 | PUT | /api/flowers/:id/water | 记录浇水 |
-| DELETE | /api/flowers/:id | 删除花卉及关联照片 |
-| GET | /api/comments | 获取评论列表 |
-| POST | /api/comments | 添加评论（JSON：nickname + content） |
+| DELETE | /api/flowers/:id | 删除花卉及关联本地照片 |
+| GET | /api/comments | 获取留言列表 |
+| POST | /api/comments | 添加留言（JSON：nickname + content） |
+| DELETE | /api/comments/:id | 删除留言 |
+| POST | /api/admin/login | 管理员密码验证 |
 
 ## 部署
 

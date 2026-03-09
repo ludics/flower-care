@@ -1,5 +1,6 @@
 // Flower Care - Main JS
 (function () {
+  // DOM refs
   const flowerGrid = document.getElementById('flower-grid');
   const flowerEmpty = document.getElementById('flower-empty');
   const commentList = document.getElementById('comment-list');
@@ -8,7 +9,77 @@
   const btnAddFlower = document.getElementById('btn-add-flower');
   const modalClose = document.getElementById('modal-close');
   const flowerForm = document.getElementById('flower-form');
+  const flowerModalTitle = document.getElementById('flower-modal-title');
+  const flowerSubmitBtn = document.getElementById('flower-submit-btn');
   const commentForm = document.getElementById('comment-form');
+
+  // Admin DOM refs
+  const btnAdminToggle = document.getElementById('btn-admin-toggle');
+  const adminBadge = document.getElementById('admin-badge');
+  const adminLoginOverlay = document.getElementById('admin-login-overlay');
+  const adminLoginClose = document.getElementById('admin-login-close');
+  const adminLoginForm = document.getElementById('admin-login-form');
+  const adminLoginError = document.getElementById('admin-login-error');
+
+  // ---- Admin state ----
+  let isAdmin = false;
+
+  function setAdminMode(value) {
+    isAdmin = value;
+    // Toggle gear icon state
+    btnAdminToggle.title = isAdmin ? '退出管理员模式' : '管理员';
+    btnAdminToggle.classList.toggle('is-admin', isAdmin);
+    // Show/hide admin badge
+    adminBadge.style.display = isAdmin ? 'inline-block' : 'none';
+    // Show/hide add flower button
+    btnAddFlower.style.display = isAdmin ? 'inline-block' : 'none';
+    // Re-render flowers and comments to show/hide admin controls
+    loadFlowers();
+    loadComments();
+  }
+
+  // ---- Admin login modal ----
+
+  function openAdminLogin() {
+    adminLoginForm.reset();
+    adminLoginError.textContent = '';
+    adminLoginOverlay.classList.add('active');
+    document.getElementById('admin-password').focus();
+  }
+
+  function closeAdminLogin() {
+    adminLoginOverlay.classList.remove('active');
+  }
+
+  btnAdminToggle.addEventListener('click', () => {
+    if (isAdmin) {
+      setAdminMode(false);
+    } else {
+      openAdminLogin();
+    }
+  });
+
+  adminLoginClose.addEventListener('click', closeAdminLogin);
+  adminLoginOverlay.addEventListener('click', (e) => {
+    if (e.target === adminLoginOverlay) closeAdminLogin();
+  });
+
+  adminLoginForm.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const password = document.getElementById('admin-password').value;
+    adminLoginError.textContent = '';
+    try {
+      const result = await API.adminLogin(password);
+      if (result.success) {
+        closeAdminLogin();
+        setAdminMode(true);
+      } else {
+        adminLoginError.textContent = result.error || '密码错误';
+      }
+    } catch {
+      adminLoginError.textContent = '登录失败，请重试';
+    }
+  });
 
   // ---- Helpers ----
 
@@ -57,6 +128,11 @@
       ? `<img class="flower-card-photo" src="${escapeHtml(flower.photo_path)}" alt="${escapeHtml(flower.name)}" />`
       : `<div class="flower-card-photo-placeholder">&#127793;</div>`;
 
+    const adminActions = isAdmin
+      ? `<button class="btn btn-edit btn-do-edit" data-id="${flower.id}">编辑</button>
+         <button class="btn btn-danger btn-do-delete" data-id="${flower.id}">删除</button>`
+      : '';
+
     const card = document.createElement('div');
     card.className = 'flower-card';
     card.dataset.id = flower.id;
@@ -69,7 +145,7 @@
         <span class="status-tag ${status.cls}">${status.text}</span>
         <div class="flower-card-actions">
           <button class="btn btn-water btn-do-water" data-id="${flower.id}">浇水</button>
-          <button class="btn btn-danger btn-do-delete" data-id="${flower.id}">删除</button>
+          ${adminActions}
         </div>
       </div>
     `;
@@ -92,10 +168,19 @@
   function renderComment(comment) {
     const item = document.createElement('div');
     item.className = 'comment-item';
+    item.dataset.id = comment.id;
+
+    const deleteBtn = isAdmin
+      ? `<button class="btn btn-comment-delete btn-do-delete-comment" data-id="${comment.id}" title="删除评论">&times;</button>`
+      : '';
+
     item.innerHTML = `
       <div class="comment-item-header">
         <span class="comment-nickname">${escapeHtml(comment.nickname)}</span>
-        <span class="comment-time">${relativeTime(comment.created_at)}</span>
+        <span class="comment-time-actions">
+          <span class="comment-time">${relativeTime(comment.created_at)}</span>
+          ${deleteBtn}
+        </span>
       </div>
       <div class="comment-content">${escapeHtml(comment.content)}</div>
     `;
@@ -113,42 +198,96 @@
     }
   }
 
-  // ---- Modal ----
+  // ---- Photo mode tabs ----
 
-  function openModal() {
+  const tabUpload = document.getElementById('tab-upload');
+  const tabUrl = document.getElementById('tab-url');
+  const flowerPhotoFile = document.getElementById('flower-photo');
+  const flowerPhotoUrl = document.getElementById('flower-photo-url');
+
+  function setPhotoTab(mode) {
+    if (mode === 'url') {
+      tabUrl.classList.add('active');
+      tabUpload.classList.remove('active');
+      flowerPhotoFile.style.display = 'none';
+      flowerPhotoUrl.style.display = 'block';
+    } else {
+      tabUpload.classList.add('active');
+      tabUrl.classList.remove('active');
+      flowerPhotoFile.style.display = 'block';
+      flowerPhotoUrl.style.display = 'none';
+    }
+  }
+
+  tabUpload.addEventListener('click', () => setPhotoTab('upload'));
+  tabUrl.addEventListener('click', () => setPhotoTab('url'));
+
+  // ---- Flower Modal (Add / Edit) ----
+
+  function openFlowerModal(flower = null) {
+    flowerForm.reset();
+    document.getElementById('flower-edit-id').value = flower ? flower.id : '';
+    flowerModalTitle.textContent = flower ? '编辑花卉' : '添加花卉';
+    flowerSubmitBtn.textContent = flower ? '确认修改' : '确认添加';
+    if (flower) {
+      document.getElementById('flower-name').value = flower.name;
+      document.getElementById('flower-interval').value = flower.water_interval_days;
+      // Pre-fill photo URL if it's an external link
+      if (flower.photo_path && !flower.photo_path.startsWith('/uploads/')) {
+        setPhotoTab('url');
+        flowerPhotoUrl.value = flower.photo_path;
+      } else {
+        setPhotoTab('upload');
+      }
+    } else {
+      setPhotoTab('upload');
+    }
     modalOverlay.classList.add('active');
   }
 
-  function closeModal() {
+  function closeFlowerModal() {
     modalOverlay.classList.remove('active');
     flowerForm.reset();
   }
 
-  btnAddFlower.addEventListener('click', openModal);
-  modalClose.addEventListener('click', closeModal);
+  btnAddFlower.addEventListener('click', () => openFlowerModal());
+  modalClose.addEventListener('click', closeFlowerModal);
   modalOverlay.addEventListener('click', (e) => {
-    if (e.target === modalOverlay) closeModal();
+    if (e.target === modalOverlay) closeFlowerModal();
   });
 
   // ---- Events ----
 
-  // Add flower
+  // Add / Edit flower submit
   flowerForm.addEventListener('submit', async (e) => {
     e.preventDefault();
+    const editId = document.getElementById('flower-edit-id').value;
     const formData = new FormData();
     formData.append('name', document.getElementById('flower-name').value.trim());
     formData.append('water_interval_days', document.getElementById('flower-interval').value);
-    const photoFile = document.getElementById('flower-photo').files[0];
-    if (photoFile) formData.append('photo', photoFile);
 
-    await API.addFlower(formData);
-    closeModal();
+    const isUrlMode = tabUrl.classList.contains('active');
+    if (isUrlMode) {
+      const urlVal = flowerPhotoUrl.value.trim();
+      if (urlVal) formData.append('photo_url', urlVal);
+    } else {
+      const photoFile = flowerPhotoFile.files[0];
+      if (photoFile) formData.append('photo', photoFile);
+    }
+
+    if (editId) {
+      await API.updateFlower(editId, formData);
+    } else {
+      await API.addFlower(formData);
+    }
+    closeFlowerModal();
     await loadFlowers();
   });
 
-  // Water / Delete via event delegation
+  // Flower card event delegation (water / edit / delete)
   flowerGrid.addEventListener('click', async (e) => {
     const waterBtn = e.target.closest('.btn-do-water');
+    const editBtn = e.target.closest('.btn-do-edit');
     const deleteBtn = e.target.closest('.btn-do-delete');
 
     if (waterBtn) {
@@ -156,10 +295,28 @@
       await loadFlowers();
     }
 
-    if (deleteBtn) {
+    if (editBtn && isAdmin) {
+      // Fetch current flower data
+      const flowers = await API.getFlowers();
+      const flower = flowers.find((f) => String(f.id) === String(editBtn.dataset.id));
+      if (flower) openFlowerModal(flower);
+    }
+
+    if (deleteBtn && isAdmin) {
       if (confirm('确定要删除这株花卉吗？')) {
         await API.deleteFlower(deleteBtn.dataset.id);
         await loadFlowers();
+      }
+    }
+  });
+
+  // Comment event delegation (delete)
+  commentList.addEventListener('click', async (e) => {
+    const deleteBtn = e.target.closest('.btn-do-delete-comment');
+    if (deleteBtn && isAdmin) {
+      if (confirm('确定要删除这条留言吗？')) {
+        await API.deleteComment(deleteBtn.dataset.id);
+        await loadComments();
       }
     }
   });

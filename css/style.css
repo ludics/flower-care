@@ -25,6 +25,54 @@ body {
   padding: 0 1.5rem;
 }
 
+/* Admin gear button - fixed bottom-right */
+.admin-gear {
+  position: fixed;
+  bottom: 1.2rem;
+  right: 1.2rem;
+  z-index: 999;
+  width: 2rem;
+  height: 2rem;
+  border-radius: 50%;
+  border: none;
+  background: rgba(180, 180, 180, 0.18);
+  color: #bbb;
+  font-size: 1rem;
+  line-height: 1;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background 0.2s, color 0.2s, transform 0.3s;
+  padding: 0;
+}
+
+.admin-gear:hover {
+  background: rgba(140, 140, 140, 0.28);
+  color: #888;
+  transform: rotate(60deg);
+}
+
+.admin-gear.is-admin {
+  color: #e07a3a;
+  background: rgba(240, 160, 80, 0.15);
+}
+
+/* Admin badge - fixed bottom-right above gear */
+.admin-badge {
+  position: fixed;
+  bottom: 3.7rem;
+  right: 0.7rem;
+  z-index: 999;
+  background-color: rgba(255, 200, 0, 0.92);
+  color: #5a4200;
+  font-size: 0.72rem;
+  font-weight: 600;
+  padding: 0.2rem 0.5rem;
+  border-radius: 10px;
+  pointer-events: none;
+}
+
 .header h1 {
   font-size: 2.2rem;
   color: #2d6a4f;
@@ -90,6 +138,17 @@ body {
   color: #fff;
   font-size: 0.85rem;
   padding: 0.35rem 0.8rem;
+}
+
+.btn-edit {
+  background-color: #f4a261;
+  color: #fff;
+  font-size: 0.85rem;
+  padding: 0.35rem 0.8rem;
+}
+
+.btn-edit:hover {
+  background-color: #e07a3a;
 }
 
 .btn-danger:hover {
@@ -330,6 +389,34 @@ body {
   margin-bottom: 0.4rem;
 }
 
+.comment-time-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.btn-comment-delete {
+  background: none;
+  border: none;
+  color: #ccc;
+  font-size: 1.1rem;
+  line-height: 1;
+  cursor: pointer;
+  padding: 0 0.2rem;
+  transition: color 0.2s;
+}
+
+.btn-comment-delete:hover {
+  color: #e63946;
+}
+
+.admin-login-error {
+  color: #e63946;
+  font-size: 0.88rem;
+  margin-bottom: 0.8rem;
+  min-height: 1.2em;
+}
+
 .comment-nickname {
   font-weight: 600;
   color: #2d6a4f;
@@ -344,6 +431,36 @@ body {
   font-size: 0.95rem;
   color: #444;
   white-space: pre-wrap;
+}
+
+/* Photo mode tabs */
+.photo-mode-tabs {
+  display: flex;
+  gap: 0;
+  margin-bottom: 0.5rem;
+  border-radius: 6px;
+  overflow: hidden;
+  border: 1px solid #ccc;
+  width: fit-content;
+}
+
+.photo-tab {
+  background: #f5f5f5;
+  border: none;
+  padding: 0.3rem 0.8rem;
+  font-size: 0.85rem;
+  cursor: pointer;
+  color: #666;
+  transition: background 0.15s, color 0.15s;
+}
+
+.photo-tab + .photo-tab {
+  border-left: 1px solid #ccc;
+}
+
+.photo-tab.active {
+  background: #55a630;
+  color: #fff;
 }
 
 /* Empty hints */
