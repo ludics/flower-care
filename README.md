@@ -1,6 +1,6 @@
 # Flower Care
 
-前端静态项目，运行在 16515 端口，通过 nginx 反向代理对外提供服务。
+家庭花卉管理应用，支持花卉照片上传、浇水提醒追踪和留言板功能。
 
 ## 本地开发
 
@@ -15,19 +15,43 @@ npm start
 
 ```
 flower-care/
-├── index.html        # 主页面
+├── server.mjs            # Express 服务端入口
+├── index.html            # 前端主页面
 ├── css/
-│   └── style.css     # 全局样式
+│   └── style.css         # 全局样式
 ├── js/
-│   └── main.js       # 主逻辑
+│   ├── api.js            # API 客户端
+│   └── main.js           # 前端逻辑
+├── etc/
+│   └── flower.ludi.dev.conf  # nginx 配置参考
+├── data/                 # DuckDB 数据库（自动创建，git 忽略）
+├── uploads/              # 上传的花卉照片（自动创建，git 忽略）
 └── package.json
 ```
+
+## 技术栈
+
+- **前端**：纯 HTML + CSS + JavaScript（无框架、无构建工具）
+- **后端**：Express（静态文件服务 + REST API）
+- **数据库**：DuckDB（嵌入式，数据文件存放在 `data/` 目录）
+- **文件上传**：multer（照片保存到 `uploads/` 目录）
+
+## API
+
+| 方法 | 路径 | 说明 |
+|------|------|------|
+| GET | /api/flowers | 获取花卉列表 |
+| POST | /api/flowers | 添加花卉（multipart/form-data，含照片文件） |
+| PUT | /api/flowers/:id/water | 记录浇水 |
+| DELETE | /api/flowers/:id | 删除花卉及关联照片 |
+| GET | /api/comments | 获取评论列表 |
+| POST | /api/comments | 添加评论（JSON：nickname + content） |
 
 ## 部署
 
 ### 服务器要求
 
-- Node.js（用于运行 `serve`）
+- Node.js
 - nginx
 
 ### nginx 配置
