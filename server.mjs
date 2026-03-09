@@ -76,8 +76,22 @@ const app = express();
 app.use(express.json());
 
 // Static files
+// HTML: no cache (ensure updates take effect immediately)
+// JS/CSS/images/favicon: cache 7 days (fingerprinted by content)
+app.use((req, res, next) => {
+  if (/\.html?$/.test(req.path) || req.path === '/') {
+    res.setHeader('Cache-Control', 'no-cache');
+  } else if (/\.(js|css|ico|png|jpg|jpeg|gif|webp|svg|woff2?)$/.test(req.path)) {
+    res.setHeader('Cache-Control', 'public, max-age=604800, stale-while-revalidate=86400');
+  }
+  next();
+});
 app.use(express.static('.'));
-app.use('/uploads', express.static(UPLOADS_DIR));
+app.use('/uploads', express.static(UPLOADS_DIR, {
+  setHeaders(res) {
+    res.setHeader('Cache-Control', 'public, max-age=604800, stale-while-revalidate=86400');
+  },
+}));
 
 // Multer for photo uploads
 const storage = multer.diskStorage({
@@ -93,6 +107,7 @@ const upload = multer({ storage, limits: { fileSize: 10 * 1024 * 1024 } });
 app.get('/api/flowers', async (req, res) => {
   try {
     const rows = await runSQL('SELECT * FROM flowers ORDER BY created_at DESC');
+    res.setHeader('Cache-Control', 'public, max-age=30, stale-while-revalidate=60');
     res.json(rows);
   } catch (err) {
     res.status(500).json({ error: err.message });
@@ -231,6 +246,7 @@ app.get('/api/watering-logs', async (req, res) => {
          ORDER BY wl.watered_at DESC`
       );
     }
+    res.setHeader('Cache-Control', 'public, max-age=30, stale-while-revalidate=60');
     res.json(rows);
   } catch (err) {
     res.status(500).json({ error: err.message });
@@ -292,6 +308,7 @@ app.delete('/api/watering-logs/:id', async (req, res) => {
 app.get('/api/comments', async (req, res) => {
   try {
     const rows = await runSQL('SELECT * FROM comments ORDER BY created_at DESC');
+    res.setHeader('Cache-Control', 'public, max-age=30, stale-while-revalidate=60');
     res.json(rows);
   } catch (err) {
     res.status(500).json({ error: err.message });
