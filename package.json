@@ -1,0 +1,11 @@
+{
+  "name": "flower-care",
+  "version": "1.0.0",
+  "description": "Flower Care Frontend",
+  "scripts": {
+    "start": "npx serve -p 16515 ."
+  },
+  "devDependencies": {
+    "serve": "^14.2.3"
+  }
+}
