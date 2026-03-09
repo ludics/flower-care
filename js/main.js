@@ -156,6 +156,7 @@
         <span class="status-tag ${status.cls}">${status.text}</span>
         <div class="flower-card-actions">
           <button class="btn btn-water btn-do-water" data-id="${flower.id}" data-name="${escapeHtml(flower.name)}">浇水</button>
+          <button class="btn btn-history btn-do-history" data-id="${flower.id}" data-name="${escapeHtml(flower.name)}">历史</button>
           ${adminActions}
         </div>
       </div>
@@ -305,6 +306,11 @@
       openWaterModal(waterBtn.dataset.id, waterBtn.dataset.name);
     }
 
+    const historyBtn = e.target.closest('.btn-do-history');
+    if (historyBtn) {
+      openLogModal(historyBtn.dataset.id, historyBtn.dataset.name);
+    }
+
     if (editBtn && isAdmin) {
       // Fetch current flower data
       const flowers = await API.getFlowers();
@@ -327,6 +333,27 @@
   const waterModalTitle = document.getElementById('water-modal-title');
   const waterForm = document.getElementById('water-form');
   const waterTimeInput = document.getElementById('water-time');
+  const waterMoodInput = document.getElementById('water-mood');
+  const btnMoodRefresh = document.getElementById('btn-mood-refresh');
+
+  async function fetchPoetry() {
+    try {
+      const res = await fetch('https://v2.jinrishici.com/one.json');
+      const data = await res.json();
+      if (data.status === 'success') return data.data.content;
+    } catch {}
+    return '';
+  }
+
+  async function fillPoetryMood() {
+    waterMoodInput.placeholder = '加载诗词中…';
+    const verse = await fetchPoetry();
+    if (verse) {
+      waterMoodInput.placeholder = verse;
+    } else {
+      waterMoodInput.placeholder = '记录一下此刻心情…';
+    }
+  }
 
   function toLocalDatetimeValue(date) {
     const y = date.getFullYear();
@@ -342,6 +369,8 @@
     waterModalTitle.textContent = name ? `记录浇水：${name}` : '记录浇水';
     waterTimeInput.value = toLocalDatetimeValue(new Date());
     waterTimeInput.max = toLocalDatetimeValue(new Date());
+    waterMoodInput.value = '';
+    fillPoetryMood();
     waterModalOverlay.classList.add('active');
   }
 
@@ -349,6 +378,8 @@
     waterModalOverlay.classList.remove('active');
     pendingWaterId = null;
   }
+
+  btnMoodRefresh.addEventListener('click', fillPoetryMood);
 
   waterModalClose.addEventListener('click', closeWaterModal);
   waterModalOverlay.addEventListener('click', (e) => {
@@ -360,10 +391,124 @@
     if (!pendingWaterId) return;
     const id = pendingWaterId;
     const wateredAt = new Date(waterTimeInput.value).toISOString();
+    // Use typed value; if empty, use placeholder (poetry) as mood
+    const mood = waterMoodInput.value.trim() || waterMoodInput.placeholder || null;
+    const finalMood = (mood && mood !== '加载诗词中…' && mood !== '记录一下此刻心情…') ? mood : null;
     closeWaterModal();
-    await API.waterFlower(id, wateredAt);
+    await API.waterFlower(id, wateredAt, finalMood);
     await loadFlowers();
   });
+
+  // ---- Watering history modal ----
+
+  let logModalFlowerId = null;
+  const logModalOverlay = document.getElementById('log-modal-overlay');
+  const logModalClose = document.getElementById('log-modal-close');
+  const logModalTitle = document.getElementById('log-modal-title');
+  const logList = document.getElementById('log-list');
+  const logEmpty = document.getElementById('log-empty');
+
+  function renderLogItem(log) {
+    const item = document.createElement('div');
+    item.className = 'log-item';
+    item.dataset.id = log.id;
+    const adminBtns = isAdmin
+      ? `<button class="btn btn-sm btn-edit btn-do-edit-log" data-id="${log.id}">编辑</button>
+         <button class="btn btn-sm btn-danger btn-do-delete-log" data-id="${log.id}">删除</button>`
+      : '';
+    item.innerHTML = `
+      <div class="log-item-header">
+        <span class="log-flower-name">${escapeHtml(log.flower_name)}</span>
+        <span class="log-item-actions">${adminBtns}</span>
+      </div>
+      <div class="log-time">${relativeTime(log.watered_at)}</div>
+      ${log.mood ? `<div class="log-mood">${escapeHtml(log.mood)}</div>` : ''}
+    `;
+    return item;
+  }
+
+  async function loadLogModal() {
+    const logs = await API.getWateringLogs(logModalFlowerId);
+    logList.innerHTML = '';
+    if (logs.length === 0) {
+      logEmpty.style.display = 'block';
+    } else {
+      logEmpty.style.display = 'none';
+      logs.forEach((l) => logList.appendChild(renderLogItem(l)));
+    }
+  }
+
+  function openLogModal(flowerId = null, flowerName = null) {
+    logModalFlowerId = flowerId;
+    logModalTitle.textContent = flowerName ? `浇水历史：${flowerName}` : '全部浇水历史';
+    logModalOverlay.classList.add('active');
+    loadLogModal();
+  }
+
+  function closeLogModal() {
+    logModalOverlay.classList.remove('active');
+    logModalFlowerId = null;
+  }
+
+  logModalClose.addEventListener('click', closeLogModal);
+  logModalOverlay.addEventListener('click', (e) => {
+    if (e.target === logModalOverlay) closeLogModal();
+  });
+
+  logList.addEventListener('click', async (e) => {
+    const editBtn = e.target.closest('.btn-do-edit-log');
+    const deleteBtn = e.target.closest('.btn-do-delete-log');
+    if (editBtn && isAdmin) {
+      const logs = await API.getWateringLogs(logModalFlowerId);
+      const log = logs.find((l) => String(l.id) === String(editBtn.dataset.id));
+      if (log) openLogEditModal(log);
+    }
+    if (deleteBtn && isAdmin) {
+      if (confirm('确定要删除这条浇水记录吗？')) {
+        await API.deleteWateringLog(deleteBtn.dataset.id);
+        await loadLogModal();
+        await loadFlowers();
+      }
+    }
+  });
+
+  // ---- Edit watering log modal ----
+
+  const logEditOverlay = document.getElementById('log-edit-overlay');
+  const logEditClose = document.getElementById('log-edit-close');
+  const logEditForm = document.getElementById('log-edit-form');
+  const logEditTimeInput = document.getElementById('log-edit-time');
+  const logEditMoodInput = document.getElementById('log-edit-mood');
+
+  function openLogEditModal(log) {
+    document.getElementById('log-edit-id').value = log.id;
+    logEditTimeInput.value = toLocalDatetimeValue(new Date(log.watered_at));
+    logEditMoodInput.value = log.mood || '';
+    logEditOverlay.classList.add('active');
+  }
+
+  function closeLogEditModal() {
+    logEditOverlay.classList.remove('active');
+  }
+
+  logEditClose.addEventListener('click', closeLogEditModal);
+  logEditOverlay.addEventListener('click', (e) => {
+    if (e.target === logEditOverlay) closeLogEditModal();
+  });
+
+  logEditForm.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const id = document.getElementById('log-edit-id').value;
+    const wateredAt = new Date(logEditTimeInput.value).toISOString();
+    const mood = logEditMoodInput.value.trim() || null;
+    closeLogEditModal();
+    await API.updateWateringLog(id, { watered_at: wateredAt, mood });
+    await loadLogModal();
+    await loadFlowers();
+  });
+
+  // ---- View all logs button ----
+  document.getElementById('btn-view-all-logs').addEventListener('click', () => openLogModal());
 
   // Comment event delegation (delete)
   commentList.addEventListener('click', async (e) => {

@@ -61,6 +61,14 @@ await execSQL(`
     content VARCHAR NOT NULL,
     created_at TIMESTAMP DEFAULT current_timestamp
   );
+  CREATE SEQUENCE IF NOT EXISTS watering_logs_seq START 1;
+  CREATE TABLE IF NOT EXISTS watering_logs (
+    id INTEGER PRIMARY KEY DEFAULT nextval('watering_logs_seq'),
+    flower_id INTEGER NOT NULL,
+    watered_at TIMESTAMP NOT NULL,
+    mood VARCHAR,
+    created_at TIMESTAMP DEFAULT current_timestamp
+  );
 `);
 
 // Express setup
@@ -115,13 +123,18 @@ app.post('/api/flowers', upload.single('photo'), async (req, res) => {
 app.put('/api/flowers/:id/water', async (req, res) => {
   try {
     const id = parseInt(req.params.id);
-    const { watered_at } = req.body;
+    const { watered_at, mood } = req.body;
     const ts = watered_at ? new Date(watered_at) : new Date();
     if (isNaN(ts.getTime())) return res.status(400).json({ error: '无效的时间格式' });
-    await runSQL(`UPDATE flowers SET last_watered = $1 WHERE id = $2`, [ts.toISOString(), id]);
     const rows = await runSQL(`SELECT * FROM flowers WHERE id = $1`, [id]);
     if (rows.length === 0) return res.status(404).json({ error: '花卉不存在' });
-    res.json(rows[0]);
+    await runSQL(`UPDATE flowers SET last_watered = $1 WHERE id = $2`, [ts.toISOString(), id]);
+    await runSQL(
+      `INSERT INTO watering_logs (flower_id, watered_at, mood) VALUES ($1, $2, $3)`,
+      [id, ts.toISOString(), mood || null]
+    );
+    const updated = await runSQL(`SELECT * FROM flowers WHERE id = $1`, [id]);
+    res.json(updated[0]);
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
@@ -141,6 +154,7 @@ app.delete('/api/flowers/:id', async (req, res) => {
       if (fs.existsSync(filePath)) fs.unlinkSync(filePath);
     }
 
+    await runSQL(`DELETE FROM watering_logs WHERE flower_id = $1`, [id]);
     await runSQL(`DELETE FROM flowers WHERE id = $1`, [id]);
     res.json({ success: true });
   } catch (err) {
@@ -193,6 +207,82 @@ app.put('/api/flowers/:id', upload.single('photo'), async (req, res) => {
     );
     const updated = await runSQL(`SELECT * FROM flowers WHERE id = $1`, [id]);
     res.json(updated[0]);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// GET /api/watering-logs
+app.get('/api/watering-logs', async (req, res) => {
+  try {
+    const { flower_id } = req.query;
+    let rows;
+    if (flower_id) {
+      rows = await runSQL(
+        `SELECT wl.*, f.name as flower_name FROM watering_logs wl
+         JOIN flowers f ON f.id = wl.flower_id
+         WHERE wl.flower_id = $1 ORDER BY wl.watered_at DESC`,
+        [parseInt(flower_id)]
+      );
+    } else {
+      rows = await runSQL(
+        `SELECT wl.*, f.name as flower_name FROM watering_logs wl
+         JOIN flowers f ON f.id = wl.flower_id
+         ORDER BY wl.watered_at DESC`
+      );
+    }
+    res.json(rows);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// PUT /api/watering-logs/:id
+app.put('/api/watering-logs/:id', async (req, res) => {
+  try {
+    const id = parseInt(req.params.id);
+    const rows = await runSQL(`SELECT * FROM watering_logs WHERE id = $1`, [id]);
+    if (rows.length === 0) return res.status(404).json({ error: '记录不存在' });
+    const { watered_at, mood } = req.body;
+    const ts = watered_at ? new Date(watered_at) : new Date(rows[0].watered_at);
+    if (isNaN(ts.getTime())) return res.status(400).json({ error: '无效的时间格式' });
+    const newMood = mood !== undefined ? mood : rows[0].mood;
+    await runSQL(
+      `UPDATE watering_logs SET watered_at = $1, mood = $2 WHERE id = $3`,
+      [ts.toISOString(), newMood, id]
+    );
+    // Sync flowers.last_watered to latest log for this flower
+    const latest = await runSQL(
+      `SELECT MAX(watered_at) as latest FROM watering_logs WHERE flower_id = $1`,
+      [rows[0].flower_id]
+    );
+    if (latest[0]?.latest) {
+      await runSQL(`UPDATE flowers SET last_watered = $1 WHERE id = $2`, [latest[0].latest, rows[0].flower_id]);
+    }
+    const updated = await runSQL(`SELECT wl.*, f.name as flower_name FROM watering_logs wl JOIN flowers f ON f.id = wl.flower_id WHERE wl.id = $1`, [id]);
+    res.json(updated[0]);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// DELETE /api/watering-logs/:id
+app.delete('/api/watering-logs/:id', async (req, res) => {
+  try {
+    const id = parseInt(req.params.id);
+    const rows = await runSQL(`SELECT * FROM watering_logs WHERE id = $1`, [id]);
+    if (rows.length === 0) return res.status(404).json({ error: '记录不存在' });
+    const flowerId = rows[0].flower_id;
+    await runSQL(`DELETE FROM watering_logs WHERE id = $1`, [id]);
+    // Sync flowers.last_watered to latest remaining log
+    const latest = await runSQL(
+      `SELECT MAX(watered_at) as latest FROM watering_logs WHERE flower_id = $1`,
+      [flowerId]
+    );
+    if (latest[0]?.latest) {
+      await runSQL(`UPDATE flowers SET last_watered = $1 WHERE id = $2`, [latest[0].latest, flowerId]);
+    }
+    res.json({ success: true });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }

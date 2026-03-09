@@ -21,8 +21,10 @@ const API = {
     return res.json();
   },
 
-  async waterFlower(id, wateredAt = null) {
-    const body = wateredAt ? { watered_at: wateredAt } : {};
+  async waterFlower(id, wateredAt = null, mood = null) {
+    const body = {};
+    if (wateredAt) body.watered_at = wateredAt;
+    if (mood !== null) body.mood = mood;
     const res = await fetch(`/api/flowers/${id}/water`, {
       method: 'PUT',
       headers: { 'Content-Type': 'application/json' },
@@ -64,6 +66,28 @@ const API = {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ password }),
+    });
+    return res.json();
+  },
+
+  async getWateringLogs(flowerId = null) {
+    const url = flowerId ? `/api/watering-logs?flower_id=${flowerId}` : '/api/watering-logs';
+    const res = await fetch(url);
+    return res.json();
+  },
+
+  async updateWateringLog(id, data) {
+    const res = await fetch(`/api/watering-logs/${id}`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(data),
+    });
+    return res.json();
+  },
+
+  async deleteWateringLog(id) {
+    const res = await fetch(`/api/watering-logs/${id}`, {
+      method: 'DELETE',
     });
     return res.json();
   },
