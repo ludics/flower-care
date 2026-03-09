@@ -21,9 +21,12 @@ const API = {
     return res.json();
   },
 
-  async waterFlower(id) {
+  async waterFlower(id, wateredAt = null) {
+    const body = wateredAt ? { watered_at: wateredAt } : {};
     const res = await fetch(`/api/flowers/${id}/water`, {
       method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body),
     });
     return res.json();
   },

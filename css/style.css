@@ -300,6 +300,9 @@ body {
   color: #2d6a4f;
 }
 
+.modal-sm {
+  max-width: 320px;
+}\n
 .modal-close {
   background: none;
   border: none;

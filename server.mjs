@@ -115,7 +115,10 @@ app.post('/api/flowers', upload.single('photo'), async (req, res) => {
 app.put('/api/flowers/:id/water', async (req, res) => {
   try {
     const id = parseInt(req.params.id);
-    await runSQL(`UPDATE flowers SET last_watered = current_timestamp WHERE id = $1`, [id]);
+    const { watered_at } = req.body;
+    const ts = watered_at ? new Date(watered_at) : new Date();
+    if (isNaN(ts.getTime())) return res.status(400).json({ error: '无效的时间格式' });
+    await runSQL(`UPDATE flowers SET last_watered = $1 WHERE id = $2`, [ts.toISOString(), id]);
     const rows = await runSQL(`SELECT * FROM flowers WHERE id = $1`, [id]);
     if (rows.length === 0) return res.status(404).json({ error: '花卉不存在' });
     res.json(rows[0]);

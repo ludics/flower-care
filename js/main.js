@@ -1,6 +1,7 @@
 // Flower Care - Main JS
 (function () {
   // DOM refs
+  let pendingWaterId = null;
   const flowerGrid = document.getElementById('flower-grid');
   const flowerEmpty = document.getElementById('flower-empty');
   const commentList = document.getElementById('comment-list');
@@ -83,6 +84,15 @@
 
   // ---- Helpers ----
 
+  function formatDateTime(date) {
+    const y = date.getFullYear();
+    const mo = String(date.getMonth() + 1).padStart(2, '0');
+    const d = String(date.getDate()).padStart(2, '0');
+    const h = String(date.getHours()).padStart(2, '0');
+    const mi = String(date.getMinutes()).padStart(2, '0');
+    return `${y}-${mo}-${d} ${h}:${mi}`;
+  }
+
   function relativeTime(dateStr) {
     const now = new Date();
     const date = new Date(dateStr);
@@ -90,12 +100,13 @@
     const diffMin = Math.floor(diffMs / 60000);
     const diffHour = Math.floor(diffMs / 3600000);
     const diffDay = Math.floor(diffMs / 86400000);
+    const abs = formatDateTime(date);
 
     if (diffMin < 1) return '刚刚';
     if (diffMin < 60) return `${diffMin} 分钟前`;
-    if (diffHour < 24) return `${diffHour} 小时前`;
-    if (diffDay < 30) return `${diffDay} 天前`;
-    return date.toLocaleDateString('zh-CN');
+    if (diffHour < 24) return `${diffHour} 小时前（${abs}）`;
+    if (diffDay < 365) return `${diffDay} 天前（${abs}）`;
+    return abs;
   }
 
   function wateringStatus(lastWatered, intervalDays) {
@@ -144,7 +155,7 @@
         <div class="flower-card-info">上次浇水：${relativeTime(flower.last_watered)}</div>
         <span class="status-tag ${status.cls}">${status.text}</span>
         <div class="flower-card-actions">
-          <button class="btn btn-water btn-do-water" data-id="${flower.id}">浇水</button>
+          <button class="btn btn-water btn-do-water" data-id="${flower.id}" data-name="${escapeHtml(flower.name)}">浇水</button>
           ${adminActions}
         </div>
       </div>
@@ -291,8 +302,7 @@
     const deleteBtn = e.target.closest('.btn-do-delete');
 
     if (waterBtn) {
-      await API.waterFlower(waterBtn.dataset.id);
-      await loadFlowers();
+      openWaterModal(waterBtn.dataset.id, waterBtn.dataset.name);
     }
 
     if (editBtn && isAdmin) {
@@ -308,6 +318,51 @@
         await loadFlowers();
       }
     }
+  });
+
+  // ---- Water modal ----
+
+  const waterModalOverlay = document.getElementById('water-modal-overlay');
+  const waterModalClose = document.getElementById('water-modal-close');
+  const waterModalTitle = document.getElementById('water-modal-title');
+  const waterForm = document.getElementById('water-form');
+  const waterTimeInput = document.getElementById('water-time');
+
+  function toLocalDatetimeValue(date) {
+    const y = date.getFullYear();
+    const mo = String(date.getMonth() + 1).padStart(2, '0');
+    const d = String(date.getDate()).padStart(2, '0');
+    const h = String(date.getHours()).padStart(2, '0');
+    const mi = String(date.getMinutes()).padStart(2, '0');
+    return `${y}-${mo}-${d}T${h}:${mi}`;
+  }
+
+  function openWaterModal(id, name) {
+    pendingWaterId = id;
+    waterModalTitle.textContent = name ? `记录浇水：${name}` : '记录浇水';
+    waterTimeInput.value = toLocalDatetimeValue(new Date());
+    waterTimeInput.max = toLocalDatetimeValue(new Date());
+    waterModalOverlay.classList.add('active');
+  }
+
+  function closeWaterModal() {
+    waterModalOverlay.classList.remove('active');
+    pendingWaterId = null;
+  }
+
+  waterModalClose.addEventListener('click', closeWaterModal);
+  waterModalOverlay.addEventListener('click', (e) => {
+    if (e.target === waterModalOverlay) closeWaterModal();
+  });
+
+  waterForm.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    if (!pendingWaterId) return;
+    const id = pendingWaterId;
+    const wateredAt = new Date(waterTimeInput.value).toISOString();
+    closeWaterModal();
+    await API.waterFlower(id, wateredAt);
+    await loadFlowers();
   });
 
   // Comment event delegation (delete)

@@ -4,6 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Flower Care - 花卉管理</title>
+  <link rel="icon" href="/favicon.ico" type="image/x-icon" />
   <link rel="stylesheet" href="css/style.css" />
 </head>
 <body>
@@ -91,6 +92,23 @@
           <input type="number" id="flower-interval" min="1" max="90" value="3" />
         </div>
         <button type="submit" class="btn btn-primary btn-block" id="flower-submit-btn">确认添加</button>
+      </form>
+    </div>
+  </div>
+
+  <!-- Water time modal -->
+  <div class="modal-overlay" id="water-modal-overlay">
+    <div class="modal modal-sm">
+      <div class="modal-header">
+        <h3 id="water-modal-title">记录浇水</h3>
+        <button class="modal-close" id="water-modal-close">&times;</button>
+      </div>
+      <form id="water-form">
+        <div class="form-group">
+          <label for="water-time">浇水时间</label>
+          <input type="datetime-local" id="water-time" required />
+        </div>
+        <button type="submit" class="btn btn-water btn-block">确认浇水</button>
       </form>
     </div>
   </div>
