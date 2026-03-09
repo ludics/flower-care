@@ -1,11 +1,13 @@
 {
   "name": "flower-care",
   "version": "1.0.0",
-  "description": "Flower Care Frontend",
+  "description": "Flower Care - 家庭花卉管理应用",
   "scripts": {
-    "start": "npx serve -p 16515 ."
+    "start": "node server.mjs"
   },
-  "devDependencies": {
-    "serve": "^14.2.3"
+  "dependencies": {
+    "duckdb": "^1.4.4",
+    "express": "^4.21.0",
+    "multer": "^1.4.5-lts.1"
   }
 }

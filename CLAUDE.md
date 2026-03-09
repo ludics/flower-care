@@ -1,15 +1,33 @@
-# Flower Care - AI 上下文
+# CLAUDE.md
+
+This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
 ## 项目概况
 
-纯 HTML/JS 前端项目，无构建工具，无框架依赖。使用 `serve` 包在本地静态文件服务器上运行。
+纯 HTML/CSS/JS 前端静态项目，无框架、无构建工具。使用 `serve` 包提供静态文件服务。
 
-## 技术栈
+## 常用命令
 
-- 纯 HTML + CSS + JS（无框架）
-- `serve` 作为开发/生产服务器
-- nginx 反向代理
-- Cloudflare DNS 代理（Flexible SSL 模式）
+```bash
+npm install          # 安装依赖
+npm start            # 启动开发服务器（端口 16515），访问 http://localhost:16515
+```
+
+无构建、无 lint、无测试命令。项目不使用任何构建工具。
+
+## 架构
+
+请求链路：浏览器 → Cloudflare（HTTPS 终止，Flexible SSL）→ nginx（端口 80）→ serve（端口 16515）→ 静态文件
+
+- `index.html` 是唯一入口，引用 `css/style.css` 和 `js/main.js`
+- `etc/flower.ludi.dev.conf` 是 nginx 反向代理配置的参考副本
+
+## 开发约定
+
+- 暂时未引入构建工具（Webpack、Vite 等），保持零构建复杂度；后续可以根据项目情况考虑是否引入
+- 样式统一写在 `css/style.css`，不使用内联样式
+- JS 保持模块化，按功能拆分到 `js/` 目录下独立文件
+- 页面语言为中文（`lang="zh-CN"`）
 
 ## 关键配置
 
@@ -17,22 +35,10 @@
 |------|-----|
 | 监听端口 | 16515 |
 | 域名 | flower.ludi.dev |
-| nginx 配置 | /etc/nginx/sites-available/flower.ludi.dev |
-| 启动命令 | `npm start` |
-
-## 文件职责
-
-- `index.html`：页面入口，所有页面内容的起点
-- `css/style.css`：全局样式
-- `js/main.js`：主逻辑入口
-
-## 开发约定
-
-- 不引入构建工具（Webpack、Vite 等），保持零构建复杂度
-- 样式统一写在 `css/style.css`，避免内联样式
-- JS 保持模块化，功能拆分到 `js/` 目录下独立文件
+| nginx 配置路径 | /etc/nginx/sites-available/flower.ludi.dev |
 
 ## 部署注意
 
-- 服务器必须部署在**境外**（如腾讯云新加坡），国内服务器会因未备案被阿里云拦截
-- nginx 需要 sudo 权限操作，配置文件由用户手动创建
+- 服务器必须部署在**境外**（如腾讯云新加坡），国内服务器会因未备案被拦截
+- nginx 配置需要 sudo 权限，由用户手动操作
+- 生产环境建议用 `pm2` 管理进程：`pm2 start "npm start" --name flower-care`
