@@ -125,9 +125,10 @@ app.post('/api/flowers', upload.single('photo'), async (req, res) => {
     // photo_url (network link) takes priority; fallback to uploaded file
     const photoPath = photo_url?.trim() || (req.file ? `/uploads/${req.file.filename}` : null);
 
+    const now = new Date().toISOString();
     await runSQL(
-      `INSERT INTO flowers (name, photo_path, water_interval_days) VALUES ($1, $2, $3)`,
-      [name, photoPath, interval]
+      `INSERT INTO flowers (name, photo_path, water_interval_days, last_watered, created_at) VALUES ($1, $2, $3, $4, $4)`,
+      [name, photoPath, interval, now]
     );
     const rows = await runSQL('SELECT * FROM flowers ORDER BY id DESC LIMIT 1');
     res.status(201).json(rows[0]);
@@ -146,9 +147,10 @@ app.put('/api/flowers/:id/water', async (req, res) => {
     const rows = await runSQL(`SELECT * FROM flowers WHERE id = $1`, [id]);
     if (rows.length === 0) return res.status(404).json({ error: '花卉不存在' });
     await runSQL(`UPDATE flowers SET last_watered = $1 WHERE id = $2`, [ts.toISOString(), id]);
+    const logNow = new Date().toISOString();
     await runSQL(
-      `INSERT INTO watering_logs (flower_id, watered_at, mood) VALUES ($1, $2, $3)`,
-      [id, ts.toISOString(), mood || null]
+      `INSERT INTO watering_logs (flower_id, watered_at, mood, created_at) VALUES ($1, $2, $3, $4)`,
+      [id, ts.toISOString(), mood || null, logNow]
     );
     const updated = await runSQL(`SELECT * FROM flowers WHERE id = $1`, [id]);
     res.json(updated[0]);
@@ -323,9 +325,10 @@ app.post('/api/comments', async (req, res) => {
     const { nickname, content } = req.body;
     if (!nickname || !content) return res.status(400).json({ error: '昵称和内容不能为空' });
 
+    const now = new Date().toISOString();
     await runSQL(
-      `INSERT INTO comments (nickname, content) VALUES ($1, $2)`,
-      [nickname, content]
+      `INSERT INTO comments (nickname, content, created_at) VALUES ($1, $2, $3)`,
+      [nickname, content, now]
     );
     const rows = await runSQL('SELECT * FROM comments ORDER BY id DESC LIMIT 1');
     res.status(201).json(rows[0]);
