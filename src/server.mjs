@@ -5,8 +5,10 @@ import fs from 'fs';
 import duckdb from 'duckdb';
 
 const PORT = 16515;
-const DATA_DIR = path.resolve('data');
-const UPLOADS_DIR = path.resolve('uploads');
+const DIST_DIR = path.resolve('dist');
+const PUBLIC_DIR = path.join(DIST_DIR, 'public');
+const DATA_DIR = path.join(DIST_DIR, 'data');
+const UPLOADS_DIR = path.join(DIST_DIR, 'uploads');
 const DB_PATH = path.join(DATA_DIR, 'flower-care.db');
 const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD || 'floweradmin2024';
 
@@ -86,7 +88,7 @@ app.use((req, res, next) => {
   }
   next();
 });
-app.use(express.static('.'));
+app.use(express.static(PUBLIC_DIR));
 app.use('/uploads', express.static(UPLOADS_DIR, {
   setHeaders(res) {
     res.setHeader('Cache-Control', 'public, max-age=604800, stale-while-revalidate=86400');

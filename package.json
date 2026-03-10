@@ -3,7 +3,8 @@
   "version": "1.0.0",
   "description": "Flower Care - 家庭花卉管理应用",
   "scripts": {
-    "start": "node server.mjs"
+    "build": "node -e \"const fs=require('fs'),path=require('path');fs.cpSync('src/public','dist/public',{recursive:true});console.log('Build done: src/public -> dist/public');\"",
+    "start": "npm run build && node src/server.mjs"
   },
   "dependencies": {
     "duckdb": "^1.4.4",

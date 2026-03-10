@@ -15,19 +15,26 @@ npm start
 
 ```
 flower-care/
-├── server.mjs            # Express 服务端入口
-├── index.html            # 前端主页面
-├── css/
-│   └── style.css         # 全局样式
-├── js/
-│   ├── api.js            # API 客户端
-│   └── main.js           # 前端逻辑
+├── src/
+│   ├── server.mjs            # Express 服务端入口
+│   └── public/               # 前端源文件
+│       ├── index.html        # 前端主页面
+│       ├── favicon.ico       # 网站图标
+│       ├── css/
+│       │   └── style.css     # 全局样式
+│       └── js/
+│           ├── api.js        # API 客户端
+│           └── main.js       # 前端逻辑
+├── dist/                     # 构建输出目录（自动生成，git 忽略）
+│   ├── public/               # 由 src/public/ 复制而来，Express 静态服务目录
+│   ├── data/                 # DuckDB 数据库（自动创建）
+│   └── uploads/              # 上传的花卉照片（自动创建）
 ├── etc/
 │   └── flower.ludi.dev.conf  # nginx 配置参考
-├── data/                 # DuckDB 数据库（自动创建，git 忽略）
-├── uploads/              # 上传的花卉照片（自动创建，git 忽略）
 └── package.json
 ```
+
+每次启动时，`npm start` 会先执行构建（将 `src/public/` 复制到 `dist/public/`），再启动服务器。源代码不会通过 HTTP 暴露。
 
 ## 技术栈
 
